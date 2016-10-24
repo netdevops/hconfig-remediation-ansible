@@ -1,0 +1,29 @@
+---
+hier_tags:
+  safe:
+  - lineage:
+    - startswith: snmp
+    action: add
+  - lineage:
+    - contains: ACL-VTY-IP
+    action: add
+  - lineage:
+    - equals: policy-map INFRA_L3VPN
+    action: add
+  - lineage:
+    - startswith: router bgp
+    - startswith: neighbor-group
+    - startswith: address-family
+    - re_search: route-policy (DENY|DROP)
+    action: add
+  - lineage:
+    - startswith: interface
+    - equals: no carrier-delay up 0 down 0
+    action: add
+  pacl:
+  - lineage:
+    - startswith: ipv4 access-list pacl_ipv4
+    action: add
+  - lineage:
+    - startswith: ipv6 access-list pacl_ipv6
+    action: add

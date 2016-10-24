@@ -1,0 +1,20 @@
+---
+- hosts: all
+  gather_facts: False
+  connection: local
+
+  tasks:
+  - name: BUILD REMEDIATION CONFIG WITHOUT TAGS
+    net-remediation:
+      running_config: router1-running.conf
+      compiled_config: router1-compiled.conf
+      remediation_config: router1-remediation.conf
+      os_role: os_iosxr
+
+  - name: BUILD REMEDIATION CONFIG WITH TAGS
+    net-remediation:
+      running_config: router1-running.conf
+      compiled_config: router1-compiled.conf
+      remediation_config: router1-remediation-tags.conf
+      os_role: os_iosxr
+      tags: safe
