@@ -17,4 +17,4 @@
       compiled_config: router1-compiled.conf
       remediation_config: router1-remediation-tags.conf
       os_role: os_iosxr
-      config_tags: safe
+      config_tags: push
