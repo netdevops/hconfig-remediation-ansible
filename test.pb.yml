@@ -5,16 +5,16 @@
 
   tasks:
   - name: BUILD REMEDIATION CONFIG WITHOUT TAGS
-    net-remediation:
+    net_remediation:
       running_config: router1-running.conf
       compiled_config: router1-compiled.conf
       remediation_config: router1-remediation.conf
       os_role: os_iosxr
 
   - name: BUILD REMEDIATION CONFIG WITH TAGS
-    net-remediation:
+    net_remediation:
       running_config: router1-running.conf
       compiled_config: router1-compiled.conf
       remediation_config: router1-remediation-tags.conf
       os_role: os_iosxr
-      tags: safe
+      config_tags: safe

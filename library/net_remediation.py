@@ -86,26 +86,27 @@ import yaml
 class RemediationBuilder(object):
 
     def __init__(self, running_config, compiled_config, os_role):
+        self.os_role = os_role
         self.hier_options = self._load_hier_options()
         self.hier_tags = self._load_hier_tags()
         self.running_config_hier = self._load_running_config(running_config)
         self.compiled_config_hier = self._load_compiled_config(compiled_config)
 
-    def _load_hier_options(self, os_role):
+    def _load_hier_options(self):
         """
         Load the appropriate HierarchicalConfiguration options
         """
         options = 'hierarchical_configuration_options.yml'
-        with open('roles/{}/vars/{}'.format(os_role, options)) as f:
-            return yaml.load(f)['hier_options']
+        with open('roles/{}/vars/{}'.format(self.os_role, options)) as f:
+            return yaml.load(f.read())['hier_options']
 
-    def _load_hier_tags(self, os_role):
+    def _load_hier_tags(self):
         """
         Load the appropriate HierarchicalConfiguration tags
         """
         tags = 'hierarchical_configuration_options.yml'
-        with open('roles/{}/vars/{}'.format(os_role, tags)) as f:
-            return yaml.load(f)['hier_tags']
+        with open('roles/{}/vars/{}'.format(self.os_role, tags)) as f:
+            return yaml.load(f.read())['hier_tags']
 
     def _load_running_config(self, running_config):
         """
@@ -162,18 +163,19 @@ def main():
     running_config = str(module.params['running_config'])
     remediation_config = str(module.params['remediation_config'])
     os_role = str(module.params['os_role'])
-    config_tags = list(module.params['config_tags'])
+    if module.params['config_tags']:
+        config_tags = list(module.params['config_tags'])
 
     if os.path.isfile(running_config):
         with open(running_config) as f:
             running_config = f.read()
-    except:
+    else:
         module.fail_json(msg="Error opening {}.".format(running_config))
 
     if os.path.isfile(compiled_config):
-        with open(compfiled_config) as f:
+        with open(compiled_config) as f:
             compiled_config = f.read()
-    except:
+    else:
         module.fail_json(msg="Error opening {}.".format(compiled_config))
 
     hier_files = ['hierarchical_configuration_options.yml',
