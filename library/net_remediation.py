@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/local/bin/python3
 
 # Copyright 2016 James Williams <james.williams@packetgeek.net>
 #
@@ -76,69 +76,10 @@ EXAMPLES = '''
     os_role: "os_ios"
 '''
 
-
 from hierarchical_configuration import HierarchicalConfiguration
 
 import os.path
 import yaml
-
-
-class RemediationBuilder(object):
-
-    def __init__(self, running_config, compiled_config, os_role):
-        self.os_role = os_role
-        self.hier_options = self._load_hier_options()
-        self.hier_tags = self._load_hier_tags()
-        self.running_config_hier = self._load_running_config(running_config)
-        self.compiled_config_hier = self._load_compiled_config(compiled_config)
-
-    def _load_hier_options(self):
-        """
-        Load the appropriate HierarchicalConfiguration options
-        """
-        options = 'hierarchical_configuration_options.yml'
-        with open('roles/{}/vars/{}'.format(self.os_role, options)) as f:
-            return yaml.load(f.read())['hier_options']
-
-    def _load_hier_tags(self):
-        """
-        Load the appropriate HierarchicalConfiguration tags
-        """
-        tags = 'hierarchical_configuration_options.yml'
-        with open('roles/{}/vars/{}'.format(self.os_role, tags)) as f:
-            return yaml.load(f.read())['hier_tags']
-
-    def _load_running_config(self, running_config):
-        """
-        Build the HierarchicalConfiguration object for the running config
-        """
-        running_config_hier = HierarchicalConfiguration(
-            options=self.hier_options)
-        running_config_hier.from_config_text(running_config)
-
-        return running_config_hier
-
-    def _load_compiled_config(self, compiled_config):
-        """
-        Build the HierarchicalConfiguration object for the compiled config
-        """
-        compiled_config_hier = HierarchicalConfiguration(
-            options=self.hier_options)
-        compiled_config_hier.from_config_text(running_config)
-
-        return compiled_config_hier
-
-    def build_remediation(self):
-        """
-        Build HierarchicalConfiguraiton object for the Remediation Config
-        """
-        remediation_config_hier = self.compiled_config_hier.deep_diff_tree_with(
-            self.running_config_hier)
-        remediation_config_hier.set_order_weight()
-        remediation_config_heir.add_sectional_exiting()
-        remediation_config_hier.add_tags(self.hier_tags)
-
-        return remediation_config_hier.to_detailed_output()
 
 
 def main():
@@ -165,18 +106,8 @@ def main():
     os_role = str(module.params['os_role'])
     if module.params['config_tags']:
         config_tags = list(module.params['config_tags'])
-
-    if os.path.isfile(running_config):
-        with open(running_config) as f:
-            running_config = f.read()
     else:
-        module.fail_json(msg="Error opening {}.".format(running_config))
-
-    if os.path.isfile(compiled_config):
-        with open(compiled_config) as f:
-            compiled_config = f.read()
-    else:
-        module.fail_json(msg="Error opening {}.".format(compiled_config))
+        config_tags = False
 
     hier_files = ['hierarchical_configuration_options.yml',
                   'hierarchical_configuration_tags.yml']
@@ -186,18 +117,38 @@ def main():
                 os_role, item)):
             module.fail_json(msg="Error opening {}.".format(item))
 
-    remediation = RemediationBuilder(
-        running_config,
-        compiled_config,
-        os_role)
+    hier_options = yaml.load(open('roles/{}/vars/{}'.format(
+        os_role,
+        'hierarchical_configuration_options.yml')))
+
+    hier_tags = yaml.load(open('roles/{}/vars/{}'.format(
+        os_role,
+        'hierarchical_configuration_tags.yml')))
+
+    if os.path.isfile(running_config):
+        running_hier = HierarchicalConfiguration(options=hier_options)
+        running_hier.from_file(running_config)
+    else:
+        module.fail_json(msg="Error opening {}.".format(running_config))
+
+    if os.path.isfile(compiled_config):
+        compiled_hier = HierarchicalConfiguration(options=hier_options)
+        compiled_hier.from_file(compiled_config)
+    else:
+        module.fail_json(msg="Error opening {}.".format(compiled_config))
+
+    remediation_hier = compiled_hier.deep_diff_tree_with(running_hier)
+    remediation_hier.set_order_weight()
+    remediation_hier.add_sectional_exiting()
+    remediation_hier.add_tags(hier_tags)
 
     with open(remediation_config, 'w') as f:
         if config_tags:
-            for line in remediation.build_remediation():
-                if config_tags in line['tags']:
+            for line in remediation_hier.to_detailed_ouput():
+                if line['tags'] in config_tags:
                     f.write('{}\n'.format(line['text']))
         else:
-            for line in remediation.build_remediation():
+            for line in remediation_hier.to_detailed_ouput():
                 f.write('{}\n'.format(line['text']))
 
     with open(remediation_config) as f:

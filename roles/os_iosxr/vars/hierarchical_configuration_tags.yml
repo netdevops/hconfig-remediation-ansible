@@ -1,29 +1,70 @@
 ---
-hier_tags:
-  safe:
-  - lineage:
-    - startswith: snmp
-    action: add
-  - lineage:
-    - contains: ACL-VTY-IP
-    action: add
-  - lineage:
-    - equals: policy-map INFRA_L3VPN
-    action: add
-  - lineage:
-    - startswith: router bgp
-    - startswith: neighbor-group
-    - startswith: address-family
-    - re_search: route-policy (DENY|DROP)
-    action: add
-  - lineage:
-    - startswith: interface
-    - equals: no carrier-delay up 0 down 0
-    action: add
-  pacl:
-  - lineage:
-    - startswith: ipv4 access-list pacl_ipv4
-    action: add
-  - lineage:
-    - startswith: ipv6 access-list pacl_ipv6
-    action: add
+- lineage:
+  - startswith:
+    - xml agent tty
+    - snmp
+    - vty-pool
+    - control-plane
+    - bfd
+    - evpn
+    - policy-map
+    - class-map
+    - community-set
+    - prefix-set
+    - route-policy
+    - vrf DC
+  add_tags: push
+- lineage:
+  - startswith:
+    - no interface
+    - no policy-map
+    - no route-policy
+    - no community-set
+    - no prefix-set
+    - no ipv4 access-list
+    - no vrf
+  add_tags: manual
+- lineage:
+  - startswith: interface
+  - startswith:
+    - no carrier-delay up 0 down 0
+    - ipv4 unreachables disable
+    - mtu
+    - lacp period short
+    - no description
+    - description
+  add_tags: push
+- lineage:
+  - startswith: interface
+  - startswith:
+    - shutdown
+    - no shutdown
+  add_tags: manual
+- lineage:
+  - startswith: router bgp
+  - startswith: address-family
+  - startswith: additional-paths
+  add_tags: push
+- lineage:
+  - startswith: router bgp
+  - startswith: neighbor-group
+  - startswith: capability additional-paths
+  add_tags: push
+- lineage:
+  - startswith: router bgp
+  - startswith: neighbor-group
+  - startswith: address-family
+  - re_search: route-policy (DENY|DROP)
+  add_tags: push
+- lineage:
+  - startswith: router bgp
+  - startswith: vrf
+  - startswith: neighbor
+  - startswith: address-family
+  - startswith: soft-reconfiguration
+  add_tags: push
+- lineage:
+  - startswith: ''
+    negative_intersection_tags: ['manual', 'push', 'targeted_ignore', 'reboot_required', 'disruptive']
+  match_leaf: true
+  add_tags: ignore

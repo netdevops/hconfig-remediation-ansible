@@ -1,62 +1,213 @@
----
-hier_options:
-  #Enabled/Disables idempotent ACL handling for IOS-XR
-  idempotent_acl_iosxr: true
+#Indicates the style of the configuration
+style: iosxr
 
-  #if there is a delta, overwrite these parents instead of one of their children
-  sectional_overwrite:
-  - ^template
+ordering: []
+# Bad Example
+#- lineage:
+#  - equals: 'ipv4 access-list pacl_ipv4_mspe1_dfw1'
+#  - startswith:
+#    - '3910'
+#    - '4010'
+#  order: 888
 
-  sectional_overwrite_no_negate:
-  - ^as-path-set
-  - ^prefix-set
-  - ^route-policy
-  - ^extcommunity-set
-  - ^community-set
+#if there is a delta, overwrite these parents instead of one of their children
+sectional_overwrite:
+#- lineage:
+#  - re_search: ^((ip|ipv4|ipv6) )?access-list
+- lineage:
+  - startswith: template
 
-  parent_allows_duplicate_child:
-  - ^route-policy
+sectional_overwrite_no_negate:
+- lineage:
+  - startswith: as-path-set
+- lineage:
+  - startswith: prefix-set
+- lineage:
+  - startswith: route-policy
+- lineage:
+  - startswith: extcommunity-set
+- lineage:
+  - startswith: community-set
 
-  sectional_exiting:
-  - parent_expression: ^route-policy
-    exit_text: end-policy
-  - parent_expression: ^policy-map
-    exit_text: end-policy-map
+parent_allows_duplicate_child:
+- lineage:
+  - startswith: route-policy
 
-  #adds +1 indent to lines following start_expression and removes the +1 indent for lines following end_expression
-  indent_adjust:
-  - start_expression: ^\s*template
-    end_expression: ^\s*end-template
+sectional_exiting:
+- lineage:
+  - startswith: route-policy
+  exit_text: end-policy
+- lineage:
+  - startswith: policy-map
+  exit_text: end-policy-map
+- lineage:
+  - startswith: class-map
+  exit_text: end-class-map
+- lineage:
+  - startswith: community-set
+  exit_text: end-set
+- lineage:
+  - startswith: extcommunity-set
+  exit_text: end-set
+- lineage:
+  - equals: rsvp
+  exit_text: exit
+- lineage:
+  - equals: mpls traffic-eng
+  exit_text: exit
+- lineage:
+  - startswith: mpls ldp
+  exit_text: exit
+- lineage:
+  - startswith: router ospf
+  exit_text: exit
+- lineage:
+  - startswith: router ospfv3
+  exit_text: exit
+- lineage:
+  - startswith: template
+  exit_text: end-template
 
-  #substitions against the full multi-line config text
-  full_text_sub:
-  - search: 'banner exec (\^?\S)\w*\n(.*\n)+\\1\s*\n'
-    replace: ''
-  - search: 'banner motd (\^?\S)\w*\n(.*\n)+\\1\s*\n'
-    replace: ''
+#adds +1 indent to lines following start_expression and removes the +1 indent for lines following end_expression
+indent_adjust:
+- start_expression: ^\s*template
+  end_expression: ^\s*end-template
 
-  #substitions against each line of the config text
-  per_line_sub:
-  - search: ^Building configuration.*
-    replace: ''
-  - search: .*message-digest-key.*
-    replace: ''
-  - search: .*password.*
-    replace: ''
+#substitions against the full multi-line config text
+full_text_sub:
+- search: 'banner\s(exec|motd)\s(\S)\n(.*\n){1,}(\2)'
+  replace: ''
+- search: 'banner\s(exec|motd)\s(\S.).+\n(.*\n){1,}.*(\2)'
+  replace: ''
+- search: 'banner\s(exec|motd)\s(\S.)\n(.*\n){1,}(\2)'
+  replace: ''
 
-  idempotent_commands_blacklist: []
+#substitions against each line of the config text
+per_line_sub:
+- search: ^Building configuration.*
+  replace: ''
+- search: ^Current configuration.*
+  replace: ''
+- search: ^ntp clock-period .*
+  replace: ''
+- search: .*speed.*
+  replace: ''
+- search: .*duplex.*
+  replace: ''
+- search: .*negotiation auto.*
+  replace: ''
+- search: .*parity none.*
+  replace: ''
+- search: .*message-digest-key.*
+  replace: ''
+- search: .*password.*
+  replace: ''
+#- search: ^\s*ipv4 unreachables disable$
+#  replace: ''
+#- search: ^\s*ipv6 unreachables disable$
+#  replace: ''
+- search: ^end-policy
+  replace: '  end-policy'
+- search: ^end-set
+  replace: '  end-set'
+- search: ^\s*key .*
+  replace: ''
+- search: ^end$
+  replace: ''
+- search: '^\s*[#!].*'
+  replace: ''
+- search: .*secret.*
+  replace: ''
 
-  #These commands do not require negation, they simply overwrite themselves
-  idempotent_commands:
-  - ^\s*cost
-  - logging \d+.\d+.\d+.\d+ vrf MGMT
-  - soft-reconfiguration inbound
+idempotent_commands_blacklist: []
+#- lineage:
+#  - lineage expression
 
-  #Default when expression: list of expressions
-  negation_default_when: []
-  #- expressions
+#These commands do not require negation, they simply overwrite themselves
+idempotent_commands:
+- lineage:
+  - startswith: router ospf
+  - startswith: area
+  - startswith: interface
+  - startswith: cost
+- lineage:
+  - re_search: logging \d+.\d+.\d+.\d+ vrf MGMT
+- lineage:
+  - startswith: router bgp
+  - startswith: vrf
+  - startswith: address-family
+  - startswith: additional-paths selection route-policy
+- lineage:
+  - equals: line default
+  - startswith: access-class ingress
+- lineage:
+  - equals: line default
+  - startswith: transport input
+- lineage:
+  - startswith: hostname
+- lineage:
+  - equals: l2vpn
+  - startswith: bridge group
+  - startswith: interface
+  - re_search: ^storm-control (multi|broad)cast
+- lineage:
+  - startswith: logging source-interface
+- lineage:
+  - startswith: interface
+  - startswith: ipv4 address
+- lineage:
+  - startswith: router ospf
+  - startswith: router-id
+- lineage:
+  - startswith: router bgp
+  - startswith: bgp router-id
+- lineage:
+  - equals: l2vpn
+  - startswith: router-id
+- lineage:
+  - startswith: snmp-server community
+- lineage:
+  - startswith: snmp-server location
+- lineage:
+  - equals: line console
+  - startswith: exec-timeout
+- lineage:
+  - startswith: router ospf
+  - startswith: area
+  - startswith: message-digest-key
+- lineage:
+  - re_search: telnet vrf \w+ ipv4 server max-servers
+- lineage:
+  - startswith: router ospf
+  - startswith: max-metric router-lsa
+- lineage:
+  - equals: mpls ldp
+  - startswith: session protection duration
+- lineage:
+  - equals: mpls ldp
+  - startswith: igp sync delay
+- lineage:
+  - startswith: router bgp
+  - startswith: neighbor-group
+  - startswith: address-family
+  - startswith: soft-reconfiguration inbound
+- lineage:
+  - startswith: router bgp
+  - startswith: vrf
+  - startswith: neighbor
+  - startswith: address-family
+  - startswith: soft-reconfiguration inbound
+- lineage:
+  - startswith: interface
+  - startswith: mtu
 
-  #Negate substitutions: expression -> negate with
-  negation_negate_with: []
-  #- match: expression
-  #  use: command
+#Default when expression: list of lineage expressions
+negation_default_when: []
+#- lineage:
+#  - lineage expression
+
+#Negate substitutions: lineage expression -> negate with
+negation_negate_with: []
+#- lineage:
+#  - lineage expression
+#  use: command
