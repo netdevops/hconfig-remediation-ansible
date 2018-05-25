@@ -1,6 +1,6 @@
 #!/usr/local/bin/python3
 
-# Copyright 2016 James Williams <james.williams@packetgeek.net>
+# Copyright 2018 James Williams <james.williams@packetgeek.net>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
 DOCUMENTATION = '''
 ---
-module: net-remediation
+module: hconfig-remediation
 short_description: Generates a remediation plan based on a templated configuration
 description:
     - This module uses Hierarchical Configuration to consume a running configuration
@@ -24,8 +24,13 @@ description:
       network device configuration in line with its templated configuration.
 author: James Williams <james.williams@packetgeek.net>
 requirements:
-    - hierarchical_configuration
+    - hier-config
 options:
+    hostname:
+        description:
+        - This is the hostname of the device that the remediation configuration
+          is generated for.
+        required: True
     compiled_config:
         description:
         - This file is what your configuration management compiles for your device.
@@ -59,8 +64,9 @@ options:
 
 EXAMPLES = '''
 
-# net-remediation with tags
-- net-remediation:
+# hconfig-remediation with tags
+- hconfig-remediation:
+    hostname: "example.rtr"
     compiled_config: "compiled-template.conf"
     running_config: "running-config.conf"
     remediation_config: "remediation.conf"
@@ -69,14 +75,15 @@ EXAMPLES = '''
     - safe
 
 # net-remediation without tags
-- net-remediation:
+- hconfig-remediation:
+    hostname: "example.rtr"
     compiled_config: "compiled.conf"
     running_config: "running.conf"
     remediation_config: "remediation.conf"
     os_role: "os_ios"
 '''
 
-from hierarchical_configuration import HierarchicalConfiguration
+from hier_config import HConfig
 
 import os.path
 import yaml
@@ -85,6 +92,7 @@ import yaml
 def main():
     module = AnsibleModule(
         argument_spec=dict(
+            hostname=dict(required=True),
             compiled_config=dict(required=True),
             running_config=dict(required=True),
             remediation_config=dict(required=True),
@@ -92,7 +100,8 @@ def main():
             config_tags=dict(required=False)
         ),
         required_together=(
-            ['compiled_config',
+            ['hostname',
+             'compiled_config',
              'running_config',
              'remediation_config',
              'os_role']
@@ -100,10 +109,12 @@ def main():
         supports_check_mode=False
     )
 
+    hostname = str(module.params['hostname'])
     compiled_config = str(module.params['compiled_config'])
     running_config = str(module.params['running_config'])
     remediation_config = str(module.params['remediation_config'])
     os_role = str(module.params['os_role'])
+    operating_system = os_role.strip('os_')
     if module.params['config_tags']:
         config_tags = list(module.params['config_tags'])
     else:
@@ -126,29 +137,36 @@ def main():
         'hierarchical_configuration_tags.yml')))
 
     if os.path.isfile(running_config):
-        running_hier = HierarchicalConfiguration(options=hier_options)
-        running_hier.from_file(running_config)
+        running_hier = HConfig(hostname=hostame,
+                               os=operating_system,
+                               options=hier_options
+        )
+        running_hier.load_from_file(running_config)
     else:
         module.fail_json(msg="Error opening {}.".format(running_config))
 
     if os.path.isfile(compiled_config):
-        compiled_hier = HierarchicalConfiguration(options=hier_options)
-        compiled_hier.from_file(compiled_config)
+        compiled_hier = HConfig(hostname=hostame,
+                                os=operating_system,
+                                options=hier_options
+        )
+        compiled_hier.load_from_file(compiled_config)
     else:
         module.fail_json(msg="Error opening {}.".format(compiled_config))
 
     remediation_hier = compiled_hier.deep_diff_tree_with(running_hier)
+    remediation_hier = running_hier.config_to_get_to(compiled_hier)
     remediation_hier.set_order_weight()
     remediation_hier.add_sectional_exiting()
     remediation_hier.add_tags(hier_tags)
 
     with open(remediation_config, 'w') as f:
         if config_tags:
-            for line in remediation_hier.to_detailed_ouput():
+            for line in remediation_hier.dump():
                 if line['tags'] in config_tags:
                     f.write('{}\n'.format(line['text']))
         else:
-            for line in remediation_hier.to_detailed_ouput():
+            for line in remediation_hier.dump():
                 f.write('{}\n'.format(line['text']))
 
     with open(remediation_config) as f:
