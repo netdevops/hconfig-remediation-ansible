@@ -1,4 +1,4 @@
-#!/usr/local/bin/python3
+#!/usr/bin/env python
 
 # Copyright 2018 James Williams <james.williams@packetgeek.net>
 #
@@ -166,8 +166,8 @@ def main():
                 if line['tags'] in config_tags:
                     f.write('{}\n'.format(line['text']))
         else:
-            for line in remediation_hier.dump():
-                f.write('{}\n'.format(line['text']))
+            for line in remediation_hier.all_children():
+                f.write('{}\n'.format(line.cisco_style_text()))
 
     with open(remediation_config) as f:
         remediation_config = f.read()
