@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-DOCUMENTATION = '''
+DOCUMENTATION = """
 ---
 module: hconfig-remediation
 short_description: Generates a remediation plan based on a templated configuration
@@ -60,9 +60,9 @@ options:
         - By specifying tags, you can limit the potentiail remediations to specific
           commands or sections of config.
         required: False
-'''
+"""
 
-EXAMPLES = '''
+EXAMPLES = """
 
 # hconfig-remediation with tags
 - hconfig-remediation:
@@ -81,9 +81,9 @@ EXAMPLES = '''
     running_config: "running.conf"
     remediation_config: "remediation.conf"
     os_role: "os_ios"
-'''
+"""
 
-from hier_config import HConfig
+from hier_config.host import Host
 
 import os.path
 import yaml
@@ -97,7 +97,7 @@ def main():
             running_config=dict(required=True),
             remediation_config=dict(required=True),
             os_role=dict(required=True),
-            config_tags=dict(required=False)
+            config_tags=dict(required=False, type='list')
         ),
         required_together=(
             ['hostname',
@@ -115,10 +115,11 @@ def main():
     remediation_config = str(module.params['remediation_config'])
     os_role = str(module.params['os_role'])
     operating_system = os_role.strip('os_')
+
     if module.params['config_tags']:
         config_tags = list(module.params['config_tags'])
     else:
-        config_tags = False
+        config_tags = None
 
     hier_files = ['hierarchical_configuration_options.yml',
                   'hierarchical_configuration_tags.yml']
@@ -136,38 +137,27 @@ def main():
         os_role,
         'hierarchical_configuration_tags.yml')))
 
+    host = Host(hostname, operating_system, hier_options)
+
     if os.path.isfile(running_config):
-        running_hier = HConfig(hostname=hostame,
-                               os=operating_system,
-                               options=hier_options
-        )
-        running_hier.load_from_file(running_config)
+        host.load_config_from(config_type="running", name=running_config)
     else:
         module.fail_json(msg="Error opening {}.".format(running_config))
 
     if os.path.isfile(compiled_config):
-        compiled_hier = HConfig(hostname=hostame,
-                                os=operating_system,
-                                options=hier_options
-        )
-        compiled_hier.load_from_file(compiled_config)
+        host.load_config_from(config_type="compiled", name=compiled_config)
     else:
         module.fail_json(msg="Error opening {}.".format(compiled_config))
 
-    remediation_hier = compiled_hier.deep_diff_tree_with(running_hier)
-    remediation_hier = running_hier.config_to_get_to(compiled_hier)
-    remediation_hier.set_order_weight()
-    remediation_hier.add_sectional_exiting()
-    remediation_hier.add_tags(hier_tags)
+    host.load_tags(hier_tags, file=False)
+    host.load_remediation()
+
+    if config_tags is not None:
+        host.filter_remediation(include_tags=config_tags)
 
     with open(remediation_config, 'w') as f:
-        if config_tags:
-            for line in remediation_hier.dump():
-                if line['tags'] in config_tags:
-                    f.write('{}\n'.format(line['text']))
-        else:
-            for line in remediation_hier.all_children():
-                f.write('{}\n'.format(line.cisco_style_text()))
+        for line in host.facts['remediation_config_raw'].split('\n'):
+            f.write('{}\n'.format(line))
 
     with open(remediation_config) as f:
         remediation_config = f.read()
@@ -182,5 +172,6 @@ def main():
 
 
 from ansible.module_utils.basic import *
+
 if __name__ == "__main__":
     main()
