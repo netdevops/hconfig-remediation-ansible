@@ -12,11 +12,20 @@
       remediation_config: router1-remediation.conf
       os_role: os_iosxr
 
-  - name: BUILD REMEDIATION CONFIG WITH TAGS
+  - name: BUILD REMEDIATION CONFIG WITH INCLUDE TAGS
     hconfig_remediation:
       hostname: router1.rtr
       running_config: router1-running.conf
       compiled_config: router1-compiled.conf
-      remediation_config: router1-remediation-tags.conf
+      remediation_config: router1-remediation-with-include-tags.conf
       os_role: os_iosxr
-      config_tags: push
+      include_tags: push
+
+  - name: BUILD REMEDIATION CONFIG WITH EXCLUDE TAGS
+    hconfig_remediation:
+      hostname: router1.rtr
+      running_config: router1-running.conf
+      compiled_config: router1-compiled.conf
+      remediation_config: router1-remediation-with-exclude-tags.conf
+      os_role: os_iosxr
+      include_tags: ignore

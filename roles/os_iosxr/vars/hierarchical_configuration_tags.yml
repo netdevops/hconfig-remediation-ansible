@@ -1,71 +1,26 @@
 ---
 - lineage:
   - startswith:
-    - xml agent tty
-    - snmp
-    - vty-pool
-    - control-plane
-    - bfd
-    - evpn
-    - policy-map
-    - class-map
-    - community-set
-    - prefix-set
-    - route-policy
-    - vrf DC
     - ipv4 access-list
-  add_tags: push
-- lineage:
-  - startswith:
-    - no interface
-    - no policy-map
-    - no route-policy
-    - no community-set
-    - no prefix-set
     - no ipv4 access-list
-    - no vrf
-  add_tags: manual
+  add_tags: push
 - lineage:
-  - startswith: interface
+  - startswith: router bgp
+  - startswith: address-family
   - startswith:
-    - no carrier-delay up 0 down 0
-    - ipv4 unreachables disable
-    - mtu
-    - lacp period short
-    - no description
-    - description
+    - neighbor
+    - no neighbor
+    - maximum-paths
+    - exit-address-family
   add_tags: push
 - lineage:
-  - startswith: interface
+  - startswith: router bgp
   - startswith:
-    - shutdown
-    - no shutdown
-  add_tags: manual
-- lineage:
-  - startswith: router bgp
-  - startswith: address-family
-  - startswith: additional-paths
-  add_tags: push
-- lineage:
-  - startswith: router bgp
-  - startswith: neighbor-group
-  - startswith: capability additional-paths
-  add_tags: push
-- lineage:
-  - startswith: router bgp
-  - startswith: neighbor-group
-  - startswith: address-family
-  - re_search: route-policy (DENY|DROP)
-  add_tags: push
-- lineage:
-  - startswith: router bgp
-  - startswith: vrf
-  - startswith: neighbor
-  - startswith: address-family
-  - startswith: soft-reconfiguration
+    - neighbor
+    - no neighbor
   add_tags: push
 - lineage:
   - startswith: ''
-    negative_intersection_tags: ['manual', 'push', 'targeted_ignore', 'reboot_required', 'disruptive']
+    negative_intersection_tags: ['push']
   match_leaf: true
   add_tags: ignore
