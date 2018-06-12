@@ -169,8 +169,7 @@ def main():
         host.filter_remediation(include_tags=include_tags, exclude_tags=exclude_tags)
 
     with open(remediation_config, 'w') as f:
-        for line in host.facts['remediation_config_raw'].split('\n'):
-            f.write('{}\n'.format(line))
+        f.write(host.facts['remediation_config_raw'])
 
     with open(remediation_config) as f:
         remediation_config = f.read()
@@ -178,7 +177,7 @@ def main():
     results = dict()
     results['response'] = remediation_config
 
-    if len(remediation_config) > 1:
+    if len(remediation_config) > 0:
         module.exit_json(changed=True, **results)
     else:
         module.exit_json(changed=False)
