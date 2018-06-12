@@ -55,9 +55,14 @@ options:
           - roles/{{ os_role }}/vars/hierarchical_configuration_options.yml
           An os_role failing to have those files will break the remediation builder.
         required: True
-    config_tags:
+    include_tags:
         description:
-        - By specifying tags, you can limit the potentiail remediations to specific
+        - By specifying tags, you can limit the potential remediation to specific
+          commands or sections of config.
+        required: False
+    exclude_tags:
+        description:
+        - By specifying tags, you can exclude the potential remediation to specific
           commands or sections of config.
         required: False
 """
@@ -71,8 +76,10 @@ EXAMPLES = """
     running_config: "running-config.conf"
     remediation_config: "remediation.conf"
     os_role: "os_ios"
-    config_tags:
+    include_tags:
     - safe
+    exclude_tags:
+    - dangerous
 
 # net-remediation without tags
 - hconfig-remediation:
@@ -97,7 +104,8 @@ def main():
             running_config=dict(required=True),
             remediation_config=dict(required=True),
             os_role=dict(required=True),
-            config_tags=dict(required=False, type='list')
+            include_tags=dict(required=False, type='list'),
+            exclude_tags=dict(required=False, type='list'),
         ),
         required_together=(
             ['hostname',
@@ -116,10 +124,15 @@ def main():
     os_role = str(module.params['os_role'])
     operating_system = os_role.strip('os_')
 
-    if module.params['config_tags']:
-        config_tags = list(module.params['config_tags'])
+    if module.params['include_tags']:
+        include_tags = list(module.params['include_tags'])
     else:
-        config_tags = None
+        include_tags = list()
+
+    if module.params['exclude_tags']:
+        exclude_tags = list(module.params['exclude_tags'])
+    else:
+        exclude_tags = list()
 
     hier_files = ['hierarchical_configuration_options.yml',
                   'hierarchical_configuration_tags.yml']
@@ -152,8 +165,8 @@ def main():
     host.load_tags(hier_tags, file=False)
     host.load_remediation()
 
-    if config_tags is not None:
-        host.filter_remediation(include_tags=config_tags)
+    if include_tags or exclude_tags:
+        host.filter_remediation(include_tags=include_tags, exclude_tags=exclude_tags)
 
     with open(remediation_config, 'w') as f:
         for line in host.facts['remediation_config_raw'].split('\n'):
@@ -165,7 +178,7 @@ def main():
     results = dict()
     results['response'] = remediation_config
 
-    if len(remediation_config) > 0:
+    if len(remediation_config) > 1:
         module.exit_json(changed=True, **results)
     else:
         module.exit_json(changed=False)
