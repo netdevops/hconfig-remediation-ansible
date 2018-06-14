@@ -1,6 +1,8 @@
 # hconfig-remediation-ansible
 An Ansible Module for utilizing Hierarchical Configuration
 
+[![CodeFactor](https://www.codefactor.io/repository/github/netdevops/hconfig-remediation-ansible/badge)](https://www.codefactor.io/repository/github/netdevops/hconfig-remediation-ansible)
+
 Testing
 =======
 
