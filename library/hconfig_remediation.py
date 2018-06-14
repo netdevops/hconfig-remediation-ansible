@@ -1,5 +1,12 @@
 #!/usr/bin/env python
 
+from ansible.module_utils.basic import AnsibleModule, return_values
+from hier_config.host import Host
+
+import os.path
+import yaml
+
+
 # Copyright 2018 James Williams <james.williams@packetgeek.net>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -90,11 +97,6 @@ EXAMPLES = """
     os_role: "os_ios"
 """
 
-from hier_config.host import Host
-
-import os.path
-import yaml
-
 
 def main():
     module = AnsibleModule(
@@ -142,11 +144,11 @@ def main():
                 os_role, item)):
             module.fail_json(msg="Error opening {}.".format(item))
 
-    hier_options = yaml.load(open('roles/{}/vars/{}'.format(
+    hier_options = yaml.safe_load(open('roles/{}/vars/{}'.format(
         os_role,
         'hierarchical_configuration_options.yml')))
 
-    hier_tags = yaml.load(open('roles/{}/vars/{}'.format(
+    hier_tags = yaml.safe_load(open('roles/{}/vars/{}'.format(
         os_role,
         'hierarchical_configuration_tags.yml')))
 
@@ -177,13 +179,11 @@ def main():
     results = dict()
     results['response'] = remediation_config
 
-    if len(remediation_config) > 0:
+    if remediation_config:
         module.exit_json(changed=True, **results)
     else:
         module.exit_json(changed=False)
 
-
-from ansible.module_utils.basic import *
 
 if __name__ == "__main__":
     main()
