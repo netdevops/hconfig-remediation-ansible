@@ -155,16 +155,16 @@ def main():
     host = Host(hostname, operating_system, hier_options)
 
     if os.path.isfile(running_config):
-        host.load_config_from(config_type="running", name=running_config)
+        host.load_config_from(config_type="running", name=running_config, load_file=True)
     else:
         module.fail_json(msg="Error opening {}.".format(running_config))
 
     if os.path.isfile(compiled_config):
-        host.load_config_from(config_type="compiled", name=compiled_config)
+        host.load_config_from(config_type="compiled", name=compiled_config, load_file=True)
     else:
         module.fail_json(msg="Error opening {}.".format(compiled_config))
 
-    host.load_tags(hier_tags, file=False)
+    host.load_tags(hier_tags, load_file=False)
     host.load_remediation()
 
     if include_tags or exclude_tags:
