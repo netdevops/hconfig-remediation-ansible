@@ -168,7 +168,6 @@ def main():
     os_role = module.params['os_role']
     operating_system = os_role.strip('os_')
 
-
     if module.params['include_tags']:
         include_tags = list(module.params['include_tags'])
     else:
@@ -194,22 +193,13 @@ def main():
     hier_tags = yaml.safe_load(open(tags_file))
     host = Host(hostname, operating_system, hier_options)
 
-    if os.path.isfile(running_config):
-        host.load_config_from(config_type="running", name=running_config, load_file=True)
-
     if running_config is not None:
-        if os.path.isfile(running_config):
-            host.load_config_from(config_type="running", name=running_config, load_file=True)
-        else:
-            module.fail_json(msg="Error opening {}.".format(running_config))
+        host.load_config_from(config_type="running", name=running_config, load_file=True)
     else:
-        host.load_from_string(config_type="running", name=running_config_string, load_file=False)
+        host.load_config_from(config_type="running", name=running_config_string, load_file=False)
 
     if compiled_config is not None:
-        if os.path.isfile(compiled_config):
-            host.load_config_from(config_type="compiled", name=compiled_config, load_file=True)
-        else:
-            module.fail_json(msg="Error opening {}.".format(compiled_config))
+        host.load_config_from(config_type="compiled", name=compiled_config, load_file=True)
     else:
         host.load_config_from(config_type="compiled", name=compiled_config_string, load_file=False)
 
