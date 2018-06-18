@@ -42,11 +42,19 @@ options:
         description:
         - This file is what your configuration management compiles for your device.
           This file should be compiled as the source of truth.
-        required: True
+        required: False
+    compiled_config_string:
+        description:
+        - This is the string of configuration as it should exist on the device.
+        required: False
     running_config:
         description:
         - This file is contains that is currently running on the device.
         required: True
+    running_config_string:
+        description:
+        - This is the string of what is currently running on the device.
+        required: False
     remediation_config:
         description:
         - This file is generated with the commands that should be executed to bring
@@ -72,24 +80,45 @@ options:
         - By specifying tags, you can exclude the potential remediation to specific
           commands or sections of config.
         required: False
+    options_file:
+        description:
+        - The hier_config options yaml file with the settings used to
+        parse and return the configuration updates.
+        - If not provided, the module defaults to roles/{{ os_role }}/vars/hierarchical_configuration_options.yml
+        required: False
+    tags_file:
+        description:
+        - The hier_config tags yaml file with the settings used to tag configuration updates.
+        - If not provided, the module defaults to roles/{{ os_role }}/vars/hierarchical_configuration_tags.yml
+        required: False
 """
 
 EXAMPLES = """
 
-# hconfig-remediation with tags
-- hconfig-remediation:
+- name: hconfig-remediation with tags
+  hconfig-remediation:
     hostname: "example.rtr"
     compiled_config: "compiled-template.conf"
     running_config: "running-config.conf"
     remediation_config: "remediation.conf"
     os_role: "os_ios"
-    include_tags:
-    - safe
+    config_tags: "safe"
+
+- name: hconfig-remediation with multiple tags
+  hconfig-remediation:
+    hostname: "example.rtr"
+    compiled_config: "compiled-template.conf"
+    running_config: "running-config.conf"
+    remediation_config: "remediation.conf"
+    os_role: "os_ios"
     exclude_tags:
     - dangerous
+    include_tags:
+    - "aaa"
+    - "tacacs"
 
-# net-remediation without tags
-- hconfig-remediation:
+- name: net-remediation without tags
+  hconfig-remediation:
     hostname: "example.rtr"
     compiled_config: "compiled.conf"
     running_config: "running.conf"
@@ -97,34 +126,48 @@ EXAMPLES = """
     os_role: "os_ios"
 """
 
-
 def main():
     module = AnsibleModule(
         argument_spec=dict(
-            hostname=dict(required=True),
-            compiled_config=dict(required=True),
-            running_config=dict(required=True),
-            remediation_config=dict(required=True),
-            os_role=dict(required=True),
+            hostname=dict(required=True, type='str'),
+            compiled_config=dict(required=False, type='str'),
+            compiled_config_string=dict(required=False, type='str'),
+            running_config=dict(required=False, type='str'),
+            running_config_string=dict(required=False, type='str'),
+            remediation_config=dict(required=False, type='str'),
+            os_role=dict(required=True, type='str'),
+            options_file=dict(required=False, type='str'),
+            tags_file=dict(required=False, type='str'),
             include_tags=dict(required=False, type='list'),
             exclude_tags=dict(required=False, type='list'),
         ),
-        required_together=(
-            ['hostname',
-             'compiled_config',
-             'running_config',
-             'remediation_config',
-             'os_role']
-        ),
-        supports_check_mode=False
+        required_one_of=[
+            ['compiled_config', 'compiled_config_string'],
+            ['running_config', 'running_config_string'],
+        ],
+        mutually_exclusive=[
+            ['compiled_config', 'compiled_config_string'],
+            ['running_config', 'running_config_string'],
+        ],
+        supports_check_mode=False,
     )
-
-    hostname = str(module.params['hostname'])
-    compiled_config = str(module.params['compiled_config'])
-    running_config = str(module.params['running_config'])
-    remediation_config = str(module.params['remediation_config'])
-    os_role = str(module.params['os_role'])
+    hostname = module.params['hostname']
+    compiled_config = module.params['compiled_config']
+    if compiled_config is not None:
+        if not os.path.isfile(compiled_config):
+            module.fail_json(msg="Error opening {}.".format(compiled_config))
+    else:
+        compiled_config_string = module.params['compiled_config_string']
+    running_config = module.params['running_config']
+    if running_config is not None:
+        if not os.path.isfile(running_config):
+            module.fail_json(msg="Error opening {}.".format(running_config))
+    else:
+        running_config_string = module.params['running_config_string']
+    remediation_config = module.params['remediation_config']
+    os_role = module.params['os_role']
     operating_system = os_role.strip('os_')
+
 
     if module.params['include_tags']:
         include_tags = list(module.params['include_tags'])
@@ -136,13 +179,12 @@ def main():
     else:
         exclude_tags = list()
 
-    hier_files = ['hierarchical_configuration_options.yml',
-                  'hierarchical_configuration_tags.yml']
-
-    for item in hier_files:
-        if not os.path.isfile('roles/{}/vars/{}'.format(
-                os_role, item)):
-            module.fail_json(msg="Error opening {}.".format(item))
+    options_file = module.params['options_file']
+    if options_file is None:
+        options_file = 'roles/{}/vars/hierarchical_configuration_options.yml'.format(os_role)
+    tags_file = module.params['tags_file']
+    if tags_file is None:
+        tags_file = 'roles/{}/vars/hierarchical_configuration_tags.yml'.format(os_role)
 
     hier_options = yaml.safe_load(open('roles/{}/vars/{}'.format(
         os_role,
@@ -156,13 +198,26 @@ def main():
 
     if os.path.isfile(running_config):
         host.load_config_from(config_type="running", name=running_config, load_file=True)
-    else:
-        module.fail_json(msg="Error opening {}.".format(running_config))
 
-    if os.path.isfile(compiled_config):
-        host.load_config_from(config_type="compiled", name=compiled_config, load_file=True)
+    for item in options_file, tags_file:
+        if not os.path.isfile(item):
+            module.fail_json(msg="Error opening {}.".format(item))
+
+    hier_options = yaml.load(open(options_file))
+    hier_tags = yaml.load(open(tags_file))
+
+    running_hier = HConfig(hostname=hostname, os=operating_system, options=hier_options)
+    if running_config is not None:
+        running_hier.load_from_file(running_config)
     else:
-        module.fail_json(msg="Error opening {}.".format(compiled_config))
+        running_hier.load_from_string(running_config_string)
+
+
+    host = Host(hostname=hostname, os=operating_system, options=hier_options)
+    if compiled_config is not None:
+        host.load_from_file(compiled_config)
+    else:
+        host.load_from_string(compiled_config_string)
 
     host.load_tags(hier_tags, load_file=False)
     host.load_remediation()
@@ -176,13 +231,22 @@ def main():
     with open(remediation_config) as f:
         remediation_config = f.read()
 
-    results = dict()
-    results['response'] = remediation_config
+    remediation_config_list = [
+        line.cisco_style_text() for line in remediation_config.all_children_sorted()
+        if config_tags is None or line.tags.intersection(config_tags)
+    ]
+    remediation_config_lines = '\n'.join(remediation_config_list)
 
-    if remediation_config:
-        module.exit_json(changed=True, **results)
+    if remediation_config is not None:
+        with open(remediation_config, 'w') as f:
+            f.write(remediation_config_lines)
+
+    if remediation_config_lines:
+        changed = True
     else:
-        module.exit_json(changed=False)
+        changed = False
+    
+    module.exit_json(changed=changed, response=remediation_config_lines)
 
 
 if __name__ == "__main__":
