@@ -186,38 +186,32 @@ def main():
     if tags_file is None:
         tags_file = 'roles/{}/vars/hierarchical_configuration_tags.yml'.format(os_role)
 
-    hier_options = yaml.safe_load(open('roles/{}/vars/{}'.format(
-        os_role,
-        'hierarchical_configuration_options.yml')))
+    for item in options_file, tags_file:
+        if not os.path.isfile(item):
+            module.fail_json(msg="Error opening {}.".format(item))
 
-    hier_tags = yaml.safe_load(open('roles/{}/vars/{}'.format(
-        os_role,
-        'hierarchical_configuration_tags.yml')))
-
+    hier_options = yaml.safe_load(open(options_file))
+    hier_tags = yaml.safe_load(open(tags_file))
     host = Host(hostname, operating_system, hier_options)
 
     if os.path.isfile(running_config):
         host.load_config_from(config_type="running", name=running_config, load_file=True)
 
-    for item in options_file, tags_file:
-        if not os.path.isfile(item):
-            module.fail_json(msg="Error opening {}.".format(item))
-
-    hier_options = yaml.load(open(options_file))
-    hier_tags = yaml.load(open(tags_file))
-
-    running_hier = HConfig(hostname=hostname, os=operating_system, options=hier_options)
     if running_config is not None:
-        running_hier.load_from_file(running_config)
+        if os.path.isfile(running_config):
+            host.load_config_from(config_type="running", name=running_config, load_file=True)
+        else:
+            module.fail_json(msg="Error opening {}.".format(running_config))
     else:
-        running_hier.load_from_string(running_config_string)
+        host.load_from_string(config_type="running", name=running_config_string, load_file=False)
 
-
-    host = Host(hostname=hostname, os=operating_system, options=hier_options)
     if compiled_config is not None:
-        host.load_from_file(compiled_config)
+        if os.path.isfile(compiled_config):
+            host.load_config_from(config_type="compiled", name=compiled_config, load_file=True)
+        else:
+            module.fail_json(msg="Error opening {}.".format(compiled_config))
     else:
-        host.load_from_string(compiled_config_string)
+        host.load_config_from(config_type="compiled", name=compiled_config_string, load_file=False)
 
     host.load_tags(hier_tags, load_file=False)
     host.load_remediation()
@@ -225,17 +219,7 @@ def main():
     if include_tags or exclude_tags:
         host.filter_remediation(include_tags=include_tags, exclude_tags=exclude_tags)
 
-    with open(remediation_config, 'w') as f:
-        f.write(host.facts['remediation_config_raw'])
-
-    with open(remediation_config) as f:
-        remediation_config = f.read()
-
-    remediation_config_list = [
-        line.cisco_style_text() for line in remediation_config.all_children_sorted()
-        if config_tags is None or line.tags.intersection(config_tags)
-    ]
-    remediation_config_lines = '\n'.join(remediation_config_list)
+    remediation_config_lines = host.facts['remediation_config_raw']
 
     if remediation_config is not None:
         with open(remediation_config, 'w') as f:
