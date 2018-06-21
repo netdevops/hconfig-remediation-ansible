@@ -128,6 +128,40 @@ EXAMPLES = """
 """
 
 
+def _load_config(config_type, module):
+    config = ''
+    config_file = True
+
+    if module.params["{}_config".format(config_type)]:
+        config = module.params["{}_config".format(config_type)]
+        if not os.path.isfile(config):
+            module.fail_json(msg="Error opening {}.".format(config))
+    elif module.params["{}_config_string".format(config_type)]:
+        config = module.params["{}_config_string".format(config_type)]
+        config_file = False
+    else:
+        module.fail_json(msg="No {} config specified".format(config))
+
+    return {"config": config, "from_file": config_file}
+
+
+def _load_hier(data, os_role, module):
+    data_file = module.params["{}_file".format(data)]
+    hier_data = dict()
+
+    if data_file is None:
+        data_file = 'roles/{}/vars/hierarchical_configuration_{}.yml'.format(
+            os_role, data)
+
+    if os.path.isfile(data_file):
+        with open(data_file) as tmp:
+            hier_data = yaml.safe_load(tmp.read())
+    else:
+        module.fail_json(msg="Error opening {}".format(data_file))
+
+    return hier_data
+
+
 def main():
     module = AnsibleModule(
         argument_spec=dict(
@@ -155,73 +189,37 @@ def main():
     )
     hostname = module.params['hostname']
 
-    running_config = ''
-    running_config_file = True
-    if module.params['running_config']:
-        running_config = module.params['running_config']
-        if not os.path.isfile(running_config):
-            module.fail_json(msg="Error opening {}.".format(running_config))
-    elif module.params['running_config_string']:
-        running_config = module.params['running_config_string']
-        running_config_file = False
-    else:
-        module.fail_json(msg="No running config specified")
-
-    compiled_config = ''
-    compiled_config_file = True
-    if module.params['compiled_config']:
-        compiled_config = module.params['compiled_config']
-        if not os.path.isfile(compiled_config):
-            module.fail_json(msg="Error opening {}.".format(compiled_config))
-    elif module.params['compiled_config_string']:
-        compiled_config = module.params['compiled_config_string']
-        compiled_config_file = False
-    else:
-        module.fail_json(msg="No compiled config specified")
-
+    running_config = _load_config("running", module=module)
+    compiled_config = _load_config("compiled", module=module)
     remediation_config = module.params['remediation_config']
     os_role = module.params['os_role']
     operating_system = os_role.strip('os_')
 
+    include_tags = list()
     if module.params['include_tags']:
         include_tags = list(module.params['include_tags'])
-    else:
-        include_tags = list()
 
+    exclude_tags = list()
     if module.params['exclude_tags']:
         exclude_tags = list(module.params['exclude_tags'])
-    else:
-        exclude_tags = list()
 
-    options_file = module.params['options_file']
-    hier_options = dict()
-    if options_file is None:
-        options_file = 'roles/{}/vars/hierarchical_configuration_options.yml'.format(os_role)
-        if os.path.isfile(options_file):
-            with open(options_file) as tmp:
-                hier_options = yaml.safe_load(tmp.read())
-        else:
-            module.fail_json(msg="Error opening {}".format(options_file))
-
-    tags_file = module.params['tags_file']
-    hier_tags = dict()
-    if tags_file is None:
-        tags_file = 'roles/{}/vars/hierarchical_configuration_tags.yml'.format(os_role)
-        if os.path.isfile(tags_file):
-            with open(tags_file) as tmp:
-                hier_tags = yaml.safe_load(tmp.read())
-        else:
-            module.fail_json(msg="Error opening {}".format(tags_file))
+    hier_options = _load_hier("options", os_role=os_role, module=module)
+    hier_tags = _load_hier("tags", os_role=os_role, module=module)
 
     host = Host(hostname, operating_system, hier_options)
 
-    host.load_config_from(config_type="running", name=running_config, load_file=running_config_file)
-    host.load_config_from(config_type="compiled", name=compiled_config, load_file=compiled_config_file)
+    host.load_config_from(config_type="running",
+                          name=running_config["config"],
+                          load_file=running_config["from_file"])
+    host.load_config_from(config_type="compiled",
+                          name=compiled_config["config"],
+                          load_file=compiled_config["from_file"])
     host.load_tags(hier_tags, load_file=False)
     host.load_remediation()
 
     if include_tags or exclude_tags:
-        host.filter_remediation(include_tags=include_tags, exclude_tags=exclude_tags)
+        host.filter_remediation(include_tags=include_tags,
+                                exclude_tags=exclude_tags)
 
     remediation_config_string = host.facts['remediation_config_raw']
 
