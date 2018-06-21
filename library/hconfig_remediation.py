@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 
-from ansible.module_utils.basic import AnsibleModule, return_values
-from hier_config.host import Host
 
 import os.path
 import yaml
+
+from ansible.module_utils.basic import AnsibleModule
+from hier_config.host import Host
 
 
 # Copyright 2018 James Williams <james.williams@packetgeek.net>
@@ -126,6 +127,7 @@ EXAMPLES = """
     os_role: "os_ios"
 """
 
+
 def main():
     module = AnsibleModule(
         argument_spec=dict(
@@ -152,18 +154,31 @@ def main():
         supports_check_mode=False,
     )
     hostname = module.params['hostname']
-    compiled_config = module.params['compiled_config']
-    if compiled_config is not None:
-        if not os.path.isfile(compiled_config):
-            module.fail_json(msg="Error opening {}.".format(compiled_config))
-    else:
-        compiled_config_string = module.params['compiled_config_string']
-    running_config = module.params['running_config']
-    if running_config is not None:
+
+    running_config = ''
+    running_config_file = True
+    if module.params['running_config']:
+        running_config = module.params['running_config']
         if not os.path.isfile(running_config):
             module.fail_json(msg="Error opening {}.".format(running_config))
+    elif module.params['running_config_string']:
+        running_config = module.params['running_config_string']
+        running_config_file = False
     else:
-        running_config_string = module.params['running_config_string']
+        module.fail_json(msg="No running config specified")
+
+    compiled_config = ''
+    compiled_config_file = True
+    if module.params['compiled_config']:
+        compiled_config = module.params['compiled_config']
+        if not os.path.isfile(compiled_config):
+            module.fail_json(msg="Error opening {}.".format(compiled_config))
+    elif module.params['compiled_config_string']:
+        compiled_config = module.params['compiled_config_string']
+        compiled_config_file = False
+    else:
+        module.fail_json(msg="No compiled config specified")
+
     remediation_config = module.params['remediation_config']
     os_role = module.params['os_role']
     operating_system = os_role.strip('os_')
@@ -179,48 +194,46 @@ def main():
         exclude_tags = list()
 
     options_file = module.params['options_file']
+    hier_options = dict()
     if options_file is None:
         options_file = 'roles/{}/vars/hierarchical_configuration_options.yml'.format(os_role)
+        if os.path.isfile(options_file):
+            with open(options_file) as tmp:
+                hier_options = yaml.safe_load(tmp.read())
+        else:
+            module.fail_json(msg="Error opening {}".format(options_file))
+
     tags_file = module.params['tags_file']
+    hier_tags = dict()
     if tags_file is None:
         tags_file = 'roles/{}/vars/hierarchical_configuration_tags.yml'.format(os_role)
+        if os.path.isfile(tags_file):
+            with open(tags_file) as tmp:
+                hier_tags = yaml.safe_load(tmp.read())
+        else:
+            module.fail_json(msg="Error opening {}".format(tags_file))
 
-    for item in options_file, tags_file:
-        if not os.path.isfile(item):
-            module.fail_json(msg="Error opening {}.".format(item))
-
-    hier_options = yaml.safe_load(open(options_file))
-    hier_tags = yaml.safe_load(open(tags_file))
     host = Host(hostname, operating_system, hier_options)
 
-    if running_config is not None:
-        host.load_config_from(config_type="running", name=running_config, load_file=True)
-    else:
-        host.load_config_from(config_type="running", name=running_config_string, load_file=False)
-
-    if compiled_config is not None:
-        host.load_config_from(config_type="compiled", name=compiled_config, load_file=True)
-    else:
-        host.load_config_from(config_type="compiled", name=compiled_config_string, load_file=False)
-
+    host.load_config_from(config_type="running", name=running_config, load_file=running_config_file)
+    host.load_config_from(config_type="compiled", name=compiled_config, load_file=compiled_config_file)
     host.load_tags(hier_tags, load_file=False)
     host.load_remediation()
 
     if include_tags or exclude_tags:
         host.filter_remediation(include_tags=include_tags, exclude_tags=exclude_tags)
 
-    remediation_config_lines = host.facts['remediation_config_raw']
+    remediation_config_string = host.facts['remediation_config_raw']
 
     if remediation_config is not None:
-        with open(remediation_config, 'w') as f:
-            f.write(remediation_config_lines)
+        with open(remediation_config, 'w') as tmp:
+            tmp.write(remediation_config_string)
 
-    if remediation_config_lines:
+    changed = False
+    if remediation_config_string:
         changed = True
-    else:
-        changed = False
-    
-    module.exit_json(changed=changed, response=remediation_config_lines)
+
+    module.exit_json(changed=changed, response=remediation_config_string)
 
 
 if __name__ == "__main__":
