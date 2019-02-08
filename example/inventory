@@ -1,2 +1,2 @@
 [routers]
-router1 ansible_python_interpreter=./env/bin/python
+router1 ansible_python_interpreter="/usr/bin/env python"

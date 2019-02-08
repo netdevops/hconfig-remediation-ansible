@@ -28,4 +28,4 @@
       compiled_config: router1-compiled.conf
       remediation_config: router1-remediation-with-exclude-tags.conf
       os_role: os_iosxr
-      include_tags: ignore
+      exclude_tags: ignore
