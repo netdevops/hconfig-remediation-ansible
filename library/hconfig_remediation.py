@@ -3,6 +3,7 @@
 
 import os.path
 import yaml
+import hashlib
 
 from ansible.module_utils.basic import AnsibleModule
 from hier_config.host import Host
@@ -24,7 +25,7 @@ from hier_config.host import Host
 
 DOCUMENTATION = """
 ---
-module: hconfig-remediation
+module: hconfig_remediation
 short_description: Generates a remediation plan based on a templated configuration
 description:
     - This module uses Hierarchical Configuration to consume a running configuration
@@ -60,7 +61,7 @@ options:
         description:
         - This file is generated with the commands that should be executed to bring
           a device config up to spec with the compiled config.
-        required: True
+        required: False
     os_role:
         description:
         - The os_role allows you to separate hier tags and options by os type, for
@@ -96,17 +97,17 @@ options:
 
 EXAMPLES = """
 
-- name: hconfig-remediation with tags
-  hconfig-remediation:
+- name: hconfig_remediation with tags
+  hconfig_remediation:
     hostname: "example.rtr"
     compiled_config: "compiled-template.conf"
     running_config: "running-config.conf"
     remediation_config: "remediation.conf"
     os_role: "os_ios"
-    config_tags: "safe"
+    include_tags: "safe"
 
-- name: hconfig-remediation with multiple tags
-  hconfig-remediation:
+- name: hconfig_remediation with multiple tags
+  hconfig_remediation:
     hostname: "example.rtr"
     compiled_config: "compiled-template.conf"
     running_config: "running-config.conf"
@@ -118,8 +119,8 @@ EXAMPLES = """
     - "aaa"
     - "tacacs"
 
-- name: net-remediation without tags
-  hconfig-remediation:
+- name: hconfig_remediation without tags
+  hconfig_remediation:
     hostname: "example.rtr"
     compiled_config: "compiled.conf"
     running_config: "running.conf"
@@ -187,27 +188,19 @@ def main():
         ],
         supports_check_mode=False,
     )
+    changed = False
     hostname = module.params['hostname']
-
     running_config = _load_config("running", module=module)
     compiled_config = _load_config("compiled", module=module)
     remediation_config = module.params['remediation_config']
     os_role = module.params['os_role']
     operating_system = os_role.strip('os_')
-
-    include_tags = list()
-    if module.params['include_tags']:
-        include_tags = list(module.params['include_tags'])
-
-    exclude_tags = list()
-    if module.params['exclude_tags']:
-        exclude_tags = list(module.params['exclude_tags'])
-
+    include_tags = module.params['include_tags'] if module.params['include_tags'] else None
+    exclude_tags = module.params['exclude_tags'] if module.params['exclude_tags'] else None
     hier_options = _load_hier("options", os_role=os_role, module=module)
     hier_tags = _load_hier("tags", os_role=os_role, module=module)
 
     host = Host(hostname, operating_system, hier_options)
-
     host.load_config_from(config_type="running",
                           name=running_config["config"],
                           load_file=running_config["from_file"])
@@ -216,20 +209,26 @@ def main():
                           load_file=compiled_config["from_file"])
     host.load_tags(hier_tags, load_file=False)
     host.load_remediation()
-
-    if include_tags or exclude_tags:
-        host.filter_remediation(include_tags=include_tags,
-                                exclude_tags=exclude_tags)
+    host.filter_remediation(include_tags=include_tags,
+                            exclude_tags=exclude_tags)
 
     remediation_config_string = host.facts['remediation_config_raw']
 
     if remediation_config is not None:
+        md5_original = None
+        if os.path.isfile(remediation_config):
+            md5_original = hashlib.md5(open(remediation_config).read().encode('utf-8')).hexdigest()
+
         with open(remediation_config, 'w') as tmp:
             tmp.write(remediation_config_string)
+        
+        md5_new = hashlib.md5(open(remediation_config).read().encode('utf-8')).hexdigest()
 
-    changed = False
-    if remediation_config_string:
-        changed = True
+        if len({md5_new, md5_original}) > 1:
+            changed = True
+    else:
+        if remediation_config_string:
+            changed = True
 
     module.exit_json(changed=changed, response=remediation_config_string)
 

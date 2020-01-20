@@ -20,7 +20,5 @@
     - no neighbor
   add_tags: push
 - lineage:
-  - startswith: ''
-    negative_intersection_tags: ['push']
-  match_leaf: true
+  - startswith: aaa
   add_tags: ignore

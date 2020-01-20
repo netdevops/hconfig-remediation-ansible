@@ -93,3 +93,4 @@ ENV/
 *.retry
 
 example/*remediation*.conf
+.vscode
