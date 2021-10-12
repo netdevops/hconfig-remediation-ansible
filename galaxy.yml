@@ -45,16 +45,16 @@ tags:
 # dependencies: {}
 
 # The URL of the originating SCM repository
-repository: https://github.com/netdevops/hier_config
+repository: https://github.com/netdevops/hconfig-remediation-ansible
 
 # The URL to any online docs
-documentation: https://github.com/netdevops/hier_config
+documentation: https://github.com/netdevops/hconfig-remediation-ansible
 
 # The URL to the homepage of the collection/project
-homepage: https://github.com/netdevops/hier_config
+homepage: https://github.com/netdevops/hconfig-remediation-ansible
 
 # The URL to the collection issue tracker
-issues: https://github.com/netdevops/hier_config/issues
+issues: https://github.com/netdevops/hconfig-remediation-ansible/issues
 
 # A list of file glob-like patterns used to filter any files or directories that should not be included in the build
 # artifact. A pattern is matched from the relative path of the file or directory of the collection directory. This
