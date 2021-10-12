@@ -5,36 +5,36 @@
 
   tasks:
   - name: BUILD REMEDIATION CONFIG WITHOUT TAGS
-    hconfig_remediation:
+    netdevops.hier_config.remediation:
       hostname: router1.rtr
       running_config: router1-running.conf
-      compiled_config: router1-compiled.conf
+      generated_config: router1-generated.conf
       remediation_config: router1-remediation.conf
       os_role: os_iosxr
 
   - name: BUILD REMEDIATION CONFIG WITH INCLUDE TAGS
-    hconfig_remediation:
+    netdevops.hier_config.remediation:
       hostname: router1.rtr
       running_config: router1-running.conf
-      compiled_config: router1-compiled.conf
+      generated_config: router1-generated.conf
       remediation_config: router1-remediation-with-include-tags.conf
       os_role: os_iosxr
       include_tags: push
 
   - name: BUILD REMEDIATION CONFIG WITH EXCLUDE TAGS
-    hconfig_remediation:
+    netdevops.hier_config.remediation:
       hostname: router1.rtr
       running_config: router1-running.conf
-      compiled_config: router1-compiled.conf
+      generated_config: router1-generated.conf
       remediation_config: router1-remediation-with-exclude-tags.conf
       os_role: os_iosxr
       exclude_tags: ignore
 
   - name: BUILD REMEDIATION CONFIG WITH EXCLUDE TAGS
-    hconfig_remediation:
+    netdevops.hier_config.remediation:
       hostname: router1.rtr
       running_config: router1-running.conf
-      compiled_config: router1-compiled.conf
+      generated_config: router1-generated.conf
       remediation_config: router1-remediation-with-tags.conf
       os_role: os_iosxr
       exclude_tags: ignore

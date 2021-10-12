@@ -25,7 +25,7 @@ from hier_config.host import Host
 
 DOCUMENTATION = """
 ---
-module: hconfig_remediation
+module: netdevops.hier_config.remediation
 short_description: Generates a remediation plan based on a templated configuration
 description:
     - This module uses Hierarchical Configuration to consume a running configuration
@@ -40,12 +40,12 @@ options:
         - This is the hostname of the device that the remediation configuration
           is generated for.
         required: True
-    compiled_config:
+    generated_config:
         description:
         - This file is what your configuration management compiles for your device.
-          This file should be compiled as the source of truth.
+          This file should be generated as the source of truth.
         required: False
-    compiled_config_string:
+    generated_config_string:
         description:
         - This is the string of configuration as it should exist on the device.
         required: False
@@ -60,7 +60,7 @@ options:
     remediation_config:
         description:
         - This file is generated with the commands that should be executed to bring
-          a device config up to spec with the compiled config.
+          a device config up to spec with the generated config.
         required: False
     os_role:
         description:
@@ -97,19 +97,19 @@ options:
 
 EXAMPLES = """
 
-- name: hconfig_remediation with tags
-  hconfig_remediation:
+- name: netdevops.hier_config.remediation with tags
+  netdevops.hier_config.remediation:
     hostname: "example.rtr"
-    compiled_config: "compiled-template.conf"
+    generated_config: "generated-template.conf"
     running_config: "running-config.conf"
     remediation_config: "remediation.conf"
     os_role: "os_ios"
     include_tags: "safe"
 
-- name: hconfig_remediation with multiple tags
-  hconfig_remediation:
+- name: netdevops.hier_config.remediation with multiple tags
+  netdevops.hier_config.remediation:
     hostname: "example.rtr"
-    compiled_config: "compiled-template.conf"
+    generated_config: "generated-template.conf"
     running_config: "running-config.conf"
     remediation_config: "remediation.conf"
     os_role: "os_ios"
@@ -119,46 +119,28 @@ EXAMPLES = """
     - "aaa"
     - "tacacs"
 
-- name: hconfig_remediation without tags
-  hconfig_remediation:
+- name: netdevops.hier_config.remediation without tags
+  netdevops.hier_config.remediation:
     hostname: "example.rtr"
-    compiled_config: "compiled.conf"
+    generated_config: "generated.conf"
     running_config: "running.conf"
     remediation_config: "remediation.conf"
     os_role: "os_ios"
 """
 
 
-def _load_config(config_type, module):
-    config = ''
-    config_file = True
-
-    if module.params["{}_config".format(config_type)]:
-        config = module.params["{}_config".format(config_type)]
-        if not os.path.isfile(config):
-            module.fail_json(msg="Error opening {}.".format(config))
-    elif module.params["{}_config_string".format(config_type)]:
-        config = module.params["{}_config_string".format(config_type)]
-        config_file = False
-    else:
-        module.fail_json(msg="No {} config specified".format(config))
-
-    return {"config": config, "from_file": config_file}
-
-
 def _load_hier(data, os_role, module):
-    data_file = module.params["{}_file".format(data)]
+    data_file = module.params[f"{data}_file"]
     hier_data = dict()
 
     if data_file is None:
-        data_file = 'roles/{}/vars/hierarchical_configuration_{}.yml'.format(
-            os_role, data)
+        data_file = f"roles/{os_role}/vars/hierarchical_configuration_{data}.yml"
 
     if os.path.isfile(data_file):
         with open(data_file) as tmp:
             hier_data = yaml.safe_load(tmp.read())
     else:
-        module.fail_json(msg="Error opening {}".format(data_file))
+        module.fail_json(msg=f"Error opening {data_file}")
 
     return hier_data
 
@@ -166,63 +148,72 @@ def _load_hier(data, os_role, module):
 def main():
     module = AnsibleModule(
         argument_spec=dict(
-            hostname=dict(required=True, type='str'),
-            compiled_config=dict(required=False, type='str'),
-            compiled_config_string=dict(required=False, type='str'),
-            running_config=dict(required=False, type='str'),
-            running_config_string=dict(required=False, type='str'),
-            remediation_config=dict(required=False, type='str'),
-            os_role=dict(required=True, type='str'),
-            options_file=dict(required=False, type='str'),
-            tags_file=dict(required=False, type='str'),
-            include_tags=dict(required=False, type='list'),
-            exclude_tags=dict(required=False, type='list'),
+            hostname=dict(required=True, type="str"),
+            generated_config=dict(required=False, type="str"),
+            generated_config_string=dict(required=False, type="str"),
+            running_config=dict(required=False, type="str"),
+            running_config_string=dict(required=False, type="str"),
+            remediation_config=dict(required=False, type="str"),
+            os_role=dict(required=True, type="str"),
+            options_file=dict(required=False, type="str"),
+            tags_file=dict(required=False, type="str"),
+            include_tags=dict(required=False, type="list"),
+            exclude_tags=dict(required=False, type="list"),
         ),
         required_one_of=[
-            ['compiled_config', 'compiled_config_string'],
-            ['running_config', 'running_config_string'],
+            ["generated_config", "generated_config_string"],
+            ["running_config", "running_config_string"],
         ],
         mutually_exclusive=[
-            ['compiled_config', 'compiled_config_string'],
-            ['running_config', 'running_config_string'],
+            ["generated_config", "generated_config_string"],
+            ["running_config", "running_config_string"],
         ],
         supports_check_mode=False,
     )
     changed = False
-    hostname = module.params['hostname']
-    running_config = _load_config("running", module=module)
-    compiled_config = _load_config("compiled", module=module)
-    remediation_config = module.params['remediation_config']
-    os_role = module.params['os_role']
-    operating_system = os_role.strip('os_')
-    include_tags = module.params['include_tags'] if module.params['include_tags'] else None
-    exclude_tags = module.params['exclude_tags'] if module.params['exclude_tags'] else None
+    hostname = module.params["hostname"]
+    remediation_config = module.params["remediation_config"]
+    os_role = module.params["os_role"]
+    operating_system = os_role.strip("os_")
+    include_tags = (
+        module.params["include_tags"] if module.params["include_tags"] else None
+    )
+    exclude_tags = (
+        module.params["exclude_tags"] if module.params["exclude_tags"] else None
+    )
     hier_options = _load_hier("options", os_role=os_role, module=module)
     hier_tags = _load_hier("tags", os_role=os_role, module=module)
 
     host = Host(hostname, operating_system, hier_options)
-    host.load_config_from(config_type="running",
-                          name=running_config["config"],
-                          load_file=running_config["from_file"])
-    host.load_config_from(config_type="compiled",
-                          name=compiled_config["config"],
-                          load_file=compiled_config["from_file"])
-    host.load_tags(hier_tags, load_file=False)
-    host.load_remediation()
-    host.filter_remediation(include_tags=include_tags,
-                            exclude_tags=exclude_tags)
+    if module.params["running_config"]:
+        host.load_running_config_from_file(file=module.params["running_config"])
+    else:
+        host.load_running_config(config_text=module.params["running_config_string"])
 
-    remediation_config_string = host.facts['remediation_config_raw']
+    if module.params["generated_config"]:
+        host.load_generated_config_from_file(file=module.params["generated_config"])
+    else:
+        host.load_generated_config(config_text=module.params["generated_config_string"])
+
+    host.load_tags(hier_tags)
+    host.remediation_config()
+    remediation_obj = host.remediation_config_filtered_text(include_tags=include_tags, exclude_tags=exclude_tags)
+
+    remediation_config_string = "".join([line for line in remediation_obj])
 
     if remediation_config is not None:
         md5_original = None
         if os.path.isfile(remediation_config):
-            md5_original = hashlib.md5(open(remediation_config).read().encode('utf-8')).hexdigest()
+            md5_original = hashlib.md5(
+                open(remediation_config).read().encode("utf-8")
+            ).hexdigest()
 
-        with open(remediation_config, 'w') as tmp:
+        with open(remediation_config, "w") as tmp:
             tmp.write(remediation_config_string)
-        
-        md5_new = hashlib.md5(open(remediation_config).read().encode('utf-8')).hexdigest()
+
+        md5_new = hashlib.md5(
+            open(remediation_config).read().encode("utf-8")
+        ).hexdigest()
 
         if len({md5_new, md5_original}) > 1:
             changed = True
