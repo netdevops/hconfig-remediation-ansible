@@ -197,7 +197,9 @@ def main():
 
     host.load_tags(hier_tags)
     host.remediation_config()
-    remediation_obj = host.remediation_config_filtered_text(include_tags=include_tags, exclude_tags=exclude_tags)
+    remediation_obj = host.remediation_config_filtered_text(
+        include_tags=include_tags, exclude_tags=exclude_tags
+    )
 
     remediation_config_string = "".join([line for line in remediation_obj])
 
