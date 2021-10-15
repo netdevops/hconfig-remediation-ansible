@@ -1,0 +1,22 @@
+---
+- hosts: all
+  gather_facts: False
+  connection: local
+
+  tasks:
+  - name: BUILD REMEDIATION CONFIG WITH TAGS
+    netdevops.hier_config.remediation:
+      hostname: router2
+      running_config: router2-running.conf
+      generated_config: router2-generated.conf
+      remediation_config: router2-remediation-w-tags.conf
+      os_role: os_ios
+      include_tags: ntp
+  
+  - name: BUILD REMEDIATION CONFIG WITHOUT TAGS
+    netdevops.hier_config.remediation:
+      hostname: router2
+      running_config: router2-running.conf
+      generated_config: router2-generated.conf
+      remediation_config: router2-remediation-wo-tags.conf
+      os_role: os_ios

@@ -94,3 +94,4 @@ ENV/
 
 example/*remediation*.conf
 .vscode
+*.tar.gz

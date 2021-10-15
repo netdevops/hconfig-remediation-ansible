@@ -30,7 +30,7 @@
       os_role: os_iosxr
       exclude_tags: ignore
 
-  - name: BUILD REMEDIATION CONFIG WITH EXCLUDE TAGS
+  - name: BUILD REMEDIATION CONFIG WITH INCLUDE AND EXCLUDE TAGS
     netdevops.hier_config.remediation:
       hostname: router1.rtr
       running_config: router1-running.conf
