@@ -70,7 +70,7 @@ options:
           in its vars folder:
           - roles/{{ os_role }}/vars/hierarchical_configuration_tags.yml
           - roles/{{ os_role }}/vars/hierarchical_configuration_options.yml
-          An os_role failing to have those files will break the remediation builder.
+          An os_role failing to have those files will fall back to default hier_config options and no tags.
         required: True
     include_tags:
         description:
@@ -87,11 +87,13 @@ options:
         - The hier_config options yaml file with the settings used to
         parse and return the configuration updates.
         - If not provided, the module defaults to roles/{{ os_role }}/vars/hierarchical_configuration_options.yml
+        or if this is not provided, default hier_config options
         required: False
     tags_file:
         description:
         - The hier_config tags yaml file with the settings used to tag configuration updates.
-        - If not provided, the module defaults to roles/{{ os_role }}/vars/hierarchical_configuration_tags.yml
+        - If not provided, the module defaults to roles/{{ os_role }}/vars/hierarchical_configuration_tags.yml,
+         or if this is not provided, no tags
         required: False
 """
 
@@ -133,14 +135,17 @@ def _load_hier(data, os_role, module):
     data_file = module.params[f"{data}_file"]
     hier_data = dict()
 
-    if data_file is None:
-        data_file = f"roles/{os_role}/vars/hierarchical_configuration_{data}.yml"
+    role_data_file_path = f"roles/{os_role}/vars/hierarchical_configuration_{data}.yml"
 
-    if os.path.isfile(data_file):
+    # if data or tags file passed in as argument for OS
+    if data_file is not None and os.path.isfile(data_file):
         with open(data_file) as tmp:
             hier_data = yaml.safe_load(tmp.read())
-    else:
-        module.fail_json(msg=f"Error opening {data_file}")
+
+    # if data or tags file exists in role for OS
+    elif os.path.isfile(role_data_file_path):
+        with open(role_data_file_path) as tmp:
+            hier_data = yaml.safe_load(tmp.read())
 
     return hier_data
 
