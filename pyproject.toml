@@ -12,8 +12,8 @@ hier-config = "^3.2.0"
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.4"
 black = "^24.10.0"
-ansible = "^11.1.0"
 invoke = "^2.2.0"
+ansible-core = "2.17.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
