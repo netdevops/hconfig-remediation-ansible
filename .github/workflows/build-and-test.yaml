@@ -28,7 +28,9 @@ jobs:
         echo "${HOME}/.local/bin" >> $GITHUB_PATH
 
     - name: Install dependencies
-      run: poetry install
+      run: |
+        poetry install
+        export ANSIBLE_PYTHON_INTERPRETER=$(poetry run which python3)
 
     - name: Verify Poetry Environment
       run: poetry env info

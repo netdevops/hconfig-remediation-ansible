@@ -266,6 +266,17 @@ files = [
 ]
 
 [[package]]
+name = "invoke"
+version = "2.2.0"
+description = "Pythonic task execution"
+optional = false
+python-versions = ">=3.6"
+files = [
+    {file = "invoke-2.2.0-py3-none-any.whl", hash = "sha256:6ea924cc53d4f78e3d98bc436b08069a03077e6f85ad1ddaa8a116d7dad15820"},
+    {file = "invoke-2.2.0.tar.gz", hash = "sha256:ee6cbb101af1a859c7fe84f2a264c059020b0cb7fe3535f9424300ab568f6bd5"},
+]
+
+[[package]]
 name = "jinja2"
 version = "3.1.4"
 description = "A very fast and expressive template engine."
@@ -672,4 +683,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.11,<4.0"
-content-hash = "e4b6e3a4390c967a944be6278143ffed4a8c3f200dc9b757a7fbdb1d0f6969da"
+content-hash = "7fa3ac398ed4d51ec55788fd13c2a8af8462659819800e167731cb9d5df13f62"
