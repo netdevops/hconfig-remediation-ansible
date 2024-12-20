@@ -1,10 +1,11 @@
 ---
-- lineage:
+- match_rules:
   - startswith:
     - ipv4 access-list
     - no ipv4 access-list
-  add_tags: push
-- lineage:
+  apply_tags:
+    - push
+- match_rules:
   - startswith: router bgp
   - startswith: address-family
   - startswith:
@@ -12,13 +13,16 @@
     - no neighbor
     - maximum-paths
     - exit-address-family
-  add_tags: push
-- lineage:
+  apply_tags:
+    - push
+- match_rules:
   - startswith: router bgp
   - startswith:
     - neighbor
     - no neighbor
-  add_tags: push
-- lineage:
+  apply_tags:
+    - push
+- match_rules:
   - startswith: aaa
-  add_tags: ignore
+  apply_tags: 
+    - ignore

@@ -1,0 +1,12 @@
+---
+- name: Test remediation without tags
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Build remediation config without tags
+      netdevops.hier_config.remediation:
+        hostname: "router1.rtr"
+        running_config: "{{ playbook_dir }}/router1-running.conf"
+        generated_config: "{{ playbook_dir }}/router1-generated.conf"
+        remediation_config: "{{ playbook_dir }}/router1-remediation-with-exclude-tags.conf"
+        platform: "CISCO_XR"

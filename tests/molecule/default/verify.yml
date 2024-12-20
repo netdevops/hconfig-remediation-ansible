@@ -1,0 +1,13 @@
+---
+- name: Verify remediation results
+  hosts: all
+  tasks:
+    - name: Check remediation config was generated
+      ansible.builtin.stat:
+        path: "/tmp/router1-remediation.conf"
+      register: remediation_config
+
+    - name: Assert remediation config exists
+      ansible.builtin.assert:
+        that:
+          - remediation_config.stat.exists

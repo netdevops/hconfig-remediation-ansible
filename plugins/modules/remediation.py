@@ -1,149 +1,91 @@
-#!/usr/bin/env python
-
+#!/usr/bin/env python3
 
 import os.path
-import yaml
 import hashlib
-
 from ansible.module_utils.basic import AnsibleModule
-from hier_config.host import Host
-
-
-# Copyright 2018 James Williams <james.williams@packetgeek.net>
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#    http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+from hier_config import WorkflowRemediation, get_hconfig, Platform
+from hier_config.utils import read_text_from_file, load_hier_config_tags
 
 DOCUMENTATION = """
 ---
 module: netdevops.hier_config.remediation
 short_description: Generates a remediation plan based on a templated configuration
 description:
-    - This module uses Hierarchical Configuration to consume a running configuration
-      and a templated configuration to generate a configuration plan to bring a
-      network device configuration in line with its templated configuration.
-author: James Williams <james.williams@packetgeek.net>
+    - Uses Hierarchical Configuration (v3) to compare the running configuration with the intended configuration
+      and generate a remediation plan to bring a device into compliance.
+author: James Williams, updated by [Your Name]
 requirements:
-    - hier-config
+    - hier-config >= 3.0
 options:
     hostname:
         description:
-        - This is the hostname of the device that the remediation configuration
-          is generated for.
+        - Hostname of the device being remediated.
         required: True
     generated_config:
         description:
-        - This file is what your configuration management compiles for your device.
-          This file should be generated as the source of truth.
+        - Path to the generated configuration file.
         required: False
     generated_config_string:
         description:
-        - This is the string of configuration as it should exist on the device.
+        - String representation of the generated configuration.
         required: False
     running_config:
         description:
-        - This file is contains that is currently running on the device.
-        required: True
+        - Path to the running configuration file.
+        required: False
     running_config_string:
         description:
-        - This is the string of what is currently running on the device.
+        - String representation of the running configuration.
         required: False
     remediation_config:
         description:
-        - This file is generated with the commands that should be executed to bring
-          a device config up to spec with the generated config.
+        - Path to the file where the remediation configuration will be saved.
         required: False
-    os_role:
+    platform:
         description:
-        - The os_role allows you to separate hier tags and options by os type, for
-          example, 'os_ios' should be an ansible role located in
-          roles/os_ios/{vars,templates}. The os_role should contain two yaml files
-          in its vars folder:
-          - roles/{{ os_role }}/vars/hierarchical_configuration_tags.yml
-          - roles/{{ os_role }}/vars/hierarchical_configuration_options.yml
-          An os_role failing to have those files will break the remediation builder.
+        - The platform (e.g., CISCO_IOS, JUNIPER_JUNOS).
         required: True
     include_tags:
         description:
-        - By specifying tags, you can limit the potential remediation to specific
-          commands or sections of config.
+        - Tags to include during remediation.
         required: False
     exclude_tags:
         description:
-        - By specifying tags, you can exclude the potential remediation to specific
-          commands or sections of config.
-        required: False
-    options_file:
-        description:
-        - The hier_config options yaml file with the settings used to
-        parse and return the configuration updates.
-        - If not provided, the module defaults to roles/{{ os_role }}/vars/hierarchical_configuration_options.yml
+        - Tags to exclude during remediation.
         required: False
     tags_file:
         description:
-        - The hier_config tags yaml file with the settings used to tag configuration updates.
-        - If not provided, the module defaults to roles/{{ os_role }}/vars/hierarchical_configuration_tags.yml
+        - Path to a file containing tag rules.
         required: False
 """
 
 EXAMPLES = """
-
-- name: netdevops.hier_config.remediation with tags
+- name: Generate remediation plan with tags
   netdevops.hier_config.remediation:
     hostname: "example.rtr"
     generated_config: "generated-template.conf"
     running_config: "running-config.conf"
     remediation_config: "remediation.conf"
-    os_role: "os_ios"
-    include_tags: "safe"
+    platform: "CISCO_IOS"
+    include_tags: ["safe"]
 
-- name: netdevops.hier_config.remediation with multiple tags
-  netdevops.hier_config.remediation:
-    hostname: "example.rtr"
-    generated_config: "generated-template.conf"
-    running_config: "running-config.conf"
-    remediation_config: "remediation.conf"
-    os_role: "os_ios"
-    exclude_tags:
-    - dangerous
-    include_tags:
-    - "aaa"
-    - "tacacs"
-
-- name: netdevops.hier_config.remediation without tags
+- name: Generate remediation plan without tags
   netdevops.hier_config.remediation:
     hostname: "example.rtr"
     generated_config: "generated.conf"
     running_config: "running.conf"
     remediation_config: "remediation.conf"
-    os_role: "os_ios"
+    platform: "CISCO_IOS"
 """
 
-
-def _load_hier(data, os_role, module):
-    data_file = module.params[f"{data}_file"]
-    hier_data = dict()
-
-    if data_file is None:
-        data_file = f"roles/{os_role}/vars/hierarchical_configuration_{data}.yml"
-
-    if os.path.isfile(data_file):
-        with open(data_file) as tmp:
-            hier_data = yaml.safe_load(tmp.read())
+def load_config(file_path: str, config_string: str, platform: Platform):
+    """Load configuration from a file or string."""
+    if file_path:
+        return get_hconfig(platform, read_text_from_file(file_path))
+    elif config_string:
+        return get_hconfig(platform, config_string)
     else:
-        module.fail_json(msg=f"Error opening {data_file}")
-
-    return hier_data
-
+        raise ValueError("Either file path or string representation of the configuration must be provided.")
 
 def main():
     module = AnsibleModule(
@@ -154,11 +96,10 @@ def main():
             running_config=dict(required=False, type="str"),
             running_config_string=dict(required=False, type="str"),
             remediation_config=dict(required=False, type="str"),
-            os_role=dict(required=True, type="str"),
-            options_file=dict(required=False, type="str"),
-            tags_file=dict(required=False, type="str"),
+            platform=dict(required=True, type="str"),
             include_tags=dict(required=False, type="list"),
             exclude_tags=dict(required=False, type="list"),
+            tags_file=dict(required=False, type="str"),
         ),
         required_one_of=[
             ["generated_config", "generated_config_string"],
@@ -170,61 +111,54 @@ def main():
         ],
         supports_check_mode=False,
     )
-    changed = False
-    hostname = module.params["hostname"]
-    remediation_config = module.params["remediation_config"]
-    os_role = module.params["os_role"]
-    operating_system = os_role.strip("os_")
-    include_tags = (
-        module.params["include_tags"] if module.params["include_tags"] else None
-    )
-    exclude_tags = (
-        module.params["exclude_tags"] if module.params["exclude_tags"] else None
-    )
-    hier_options = _load_hier("options", os_role=os_role, module=module)
-    hier_tags = _load_hier("tags", os_role=os_role, module=module)
 
-    host = Host(hostname, operating_system, hier_options)
-    if module.params["running_config"]:
-        host.load_running_config_from_file(file=module.params["running_config"])
-    else:
-        host.load_running_config(config_text=module.params["running_config_string"])
+    params = module.params
+    hostname = params["hostname"]
+    platform = Platform[params["platform"]]
+    remediation_config_path = params["remediation_config"]
+    include_tags = set(params["include_tags"] or [])
+    exclude_tags = set(params["exclude_tags"] or [])
+    tags_file = params["tags_file"]
 
-    if module.params["generated_config"]:
-        host.load_generated_config_from_file(file=module.params["generated_config"])
-    else:
-        host.load_generated_config(config_text=module.params["generated_config_string"])
+    try:
+        running_config = load_config(params["running_config"], params["running_config_string"], platform)
+        generated_config = load_config(params["generated_config"], params["generated_config_string"], platform)
 
-    host.load_tags(hier_tags)
-    host.remediation_config()
-    remediation_obj = host.remediation_config_filtered_text(
-        include_tags=include_tags, exclude_tags=exclude_tags
-    )
+        # Load tag rules if provided
+        tag_rules = load_hier_config_tags(tags_file) if tags_file else None
 
-    remediation_config_string = "".join([line for line in remediation_obj])
+        # Create the WorkflowRemediation object
+        workflow = WorkflowRemediation(running_config=running_config, generated_config=generated_config)
 
-    if remediation_config is not None:
-        md5_original = None
-        if os.path.isfile(remediation_config):
-            md5_original = hashlib.md5(
-                open(remediation_config).read().encode("utf-8")
-            ).hexdigest()
+        # Apply tags if provided
+        if tag_rules:
+            workflow.apply_remediation_tag_rules(tag_rules)
 
-        with open(remediation_config, "w") as tmp:
-            tmp.write(remediation_config_string)
+        # Generate filtered remediation configuration
+        remediation_config = workflow.remediation_config_filtered_text(
+            include_tags=include_tags,
+            exclude_tags=exclude_tags
+        )
 
-        md5_new = hashlib.md5(
-            open(remediation_config).read().encode("utf-8")
-        ).hexdigest()
+        remediation_config_str = "".join(remediation_config)
+        changed = bool(remediation_config_str)
 
-        if len({md5_new, md5_original}) > 1:
-            changed = True
-    else:
-        if remediation_config_string:
-            changed = True
+        # Write to file if specified
+        if remediation_config_path:
+            md5_original = None
+            if os.path.isfile(remediation_config_path):
+                md5_original = hashlib.md5(open(remediation_config_path).read().encode("utf-8")).hexdigest()
 
-    module.exit_json(changed=changed, response=remediation_config_string)
+            with open(remediation_config_path, "w") as file:
+                file.write(remediation_config_str)
 
+            md5_new = hashlib.md5(open(remediation_config_path).read().encode("utf-8")).hexdigest()
+            changed = md5_new != md5_original
+
+        module.exit_json(changed=changed, remediation_config=remediation_config_str)
+
+    except Exception as e:
+        module.fail_json(msg=str(e))
 
 if __name__ == "__main__":
     main()
