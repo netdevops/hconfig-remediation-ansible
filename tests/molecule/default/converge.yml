@@ -1,0 +1,5 @@
+---
+- name: Converge
+  hosts: all
+  tasks:
+    - include_tasks: ../../playbooks/main.yml

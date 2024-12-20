@@ -52,7 +52,7 @@ router1                    : ok=4    changed=4    unreachable=0    failed=0    s
       running_config: router1-running.conf
       generated_config: router1-generated.conf
       remediation_config: router1-remediation.conf
-      os_role: os_iosxr
+      platform: "CISCO_XR"
 
   - name: BUILD REMEDIATION CONFIG WITH INCLUDE TAGS
     netdevops.hier_config.remediation:
@@ -60,8 +60,9 @@ router1                    : ok=4    changed=4    unreachable=0    failed=0    s
       running_config: router1-running.conf
       generated_config: router1-generated.conf
       remediation_config: router1-remediation-with-include-tags.conf
-      os_role: os_iosxr
-      include_tags: push
+      platform: "CISCO_XR"
+      include_tags:
+        - push
 
   - name: BUILD REMEDIATION CONFIG WITH EXCLUDE TAGS
     netdevops.hier_config.remediation:
@@ -69,16 +70,19 @@ router1                    : ok=4    changed=4    unreachable=0    failed=0    s
       running_config: router1-running.conf
       generated_config: router1-generated.conf
       remediation_config: router1-remediation-with-exclude-tags.conf
-      os_role: os_iosxr
-      exclude_tags: ignore
+      platform: "CISCO_XR"
+      exclude_tags:
+        - ignore
 
-  - name: BUILD REMEDIATION CONFIG WITH EXCLUDE TAGS
+  - name: BUILD REMEDIATION CONFIG WITH BOTH INCLUDE AND EXCLUDE TAGS
     netdevops.hier_config.remediation:
       hostname: router1.rtr
       running_config: router1-running.conf
       generated_config: router1-generated.conf
       remediation_config: router1-remediation-with-tags.conf
-      os_role: os_iosxr
-      exclude_tags: ignore
-      include_tags: push
+      platform: "CISCO_XR"
+      include_tags:
+        - push
+      exclude_tags:
+        - ignore
 ```

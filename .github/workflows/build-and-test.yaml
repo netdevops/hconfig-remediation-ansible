@@ -1,0 +1,50 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.11
+
+    - name: Install Poetry
+      run: |
+        curl -sSL https://install.python-poetry.org | python3 -
+        echo "POETRY_HOME=${HOME}/.local/bin" >> $GITHUB_ENV
+        echo "${HOME}/.local/bin" >> $GITHUB_PATH
+
+    - name: Install dependencies
+      run: |
+        poetry install
+        export ANSIBLE_PYTHON_INTERPRETER=$(poetry run which python3)
+
+    - name: Verify Poetry Environment
+      run: poetry env info
+
+    - name: Build Ansible Galaxy Role
+      run: poetry run ansible-galaxy collection build --output-path dist
+
+    - name: Install Ansible Galaxy Role
+      run: |
+        cd dist
+        poetry run ansible-galaxy collection install *.tar.gz
+
+    - name: Run pytest
+      run: poetry run pytest --maxfail=3 --disable-warnings
+
+    - name: Run black
+      run: poetry run black --check .

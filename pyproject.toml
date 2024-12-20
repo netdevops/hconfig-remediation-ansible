@@ -1,19 +1,19 @@
 [tool.poetry]
 name = "hconfig-remediation-ansible"
-version = "2.0.1"
+version = "3.0.0"
 description = "This is a collection of hier_config ansible modules."
 authors = ["James Williams <james.williams@packetgeek.net>"]
 license = "Apache"
 
 [tool.poetry.dependencies]
-python = "^3.8"
-hier-config = "^2.0.1"
-ansible-base = "^2.10.14"
+python = ">=3.11,<4.0"
+hier-config = "^3.2.0"
 
-[tool.poetry.dev-dependencies]
-black = "^21.9b0"
-pylint = "^2.11.1"
-bandit = "^1.7.0"
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.4"
+black = "^24.10.0"
+invoke = "^2.2.0"
+ansible-core = "2.17.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
