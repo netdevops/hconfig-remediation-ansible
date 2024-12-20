@@ -42,3 +42,6 @@ jobs:
 
     - name: Run pytest
       run: poetry run pytest --maxfail=3 --disable-warnings
+
+    - name: Run black
+      run: poetry run black --check .
