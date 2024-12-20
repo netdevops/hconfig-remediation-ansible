@@ -11,7 +11,13 @@ TAG_RULES = FIXTURES_DIR / "tag_rules.yml"
 
 def run_ansible_playbook(playbook_path, extra_vars=None):
     """Run an Ansible playbook."""
-    cmd = ["ansible-playbook", str(playbook_path), "-i", "tests/fixtures/inventory.ini", "-vvvv"]
+    cmd = [
+        "ansible-playbook",
+        str(playbook_path),
+        "-i",
+        "tests/fixtures/inventory.ini",
+        "-vvvv",
+    ]
     if extra_vars:
         cmd.extend(["--extra-vars", extra_vars])
     result = subprocess.run(cmd, capture_output=True, text=True)

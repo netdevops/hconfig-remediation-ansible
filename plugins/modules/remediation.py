@@ -78,6 +78,7 @@ EXAMPLES = """
     platform: "CISCO_IOS"
 """
 
+
 def load_config(file_path: str, config_string: str, platform: Platform):
     """Load configuration from a file or string."""
     if file_path:
@@ -85,7 +86,10 @@ def load_config(file_path: str, config_string: str, platform: Platform):
     elif config_string:
         return get_hconfig(platform, config_string)
     else:
-        raise ValueError("Either file path or string representation of the configuration must be provided.")
+        raise ValueError(
+            "Either file path or string representation of the configuration must be provided."
+        )
+
 
 def main():
     module = AnsibleModule(
@@ -121,14 +125,20 @@ def main():
     tags_file = params["tags_file"]
 
     try:
-        running_config = load_config(params["running_config"], params["running_config_string"], platform)
-        generated_config = load_config(params["generated_config"], params["generated_config_string"], platform)
+        running_config = load_config(
+            params["running_config"], params["running_config_string"], platform
+        )
+        generated_config = load_config(
+            params["generated_config"], params["generated_config_string"], platform
+        )
 
         # Load tag rules if provided
         tag_rules = load_hier_config_tags(tags_file) if tags_file else None
 
         # Create the WorkflowRemediation object
-        workflow = WorkflowRemediation(running_config=running_config, generated_config=generated_config)
+        workflow = WorkflowRemediation(
+            running_config=running_config, generated_config=generated_config
+        )
 
         # Apply tags if provided
         if tag_rules:
@@ -136,8 +146,7 @@ def main():
 
         # Generate filtered remediation configuration
         remediation_config = workflow.remediation_config_filtered_text(
-            include_tags=include_tags,
-            exclude_tags=exclude_tags
+            include_tags=include_tags, exclude_tags=exclude_tags
         )
 
         remediation_config_str = "".join(remediation_config)
@@ -147,18 +156,23 @@ def main():
         if remediation_config_path:
             md5_original = None
             if os.path.isfile(remediation_config_path):
-                md5_original = hashlib.md5(open(remediation_config_path).read().encode("utf-8")).hexdigest()
+                md5_original = hashlib.md5(
+                    open(remediation_config_path).read().encode("utf-8")
+                ).hexdigest()
 
             with open(remediation_config_path, "w") as file:
                 file.write(remediation_config_str)
 
-            md5_new = hashlib.md5(open(remediation_config_path).read().encode("utf-8")).hexdigest()
+            md5_new = hashlib.md5(
+                open(remediation_config_path).read().encode("utf-8")
+            ).hexdigest()
             changed = md5_new != md5_original
 
         module.exit_json(changed=changed, remediation_config=remediation_config_str)
 
     except Exception as e:
         module.fail_json(msg=str(e))
+
 
 if __name__ == "__main__":
     main()
