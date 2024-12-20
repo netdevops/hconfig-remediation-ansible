@@ -8,17 +8,11 @@ license = "Apache"
 [tool.poetry.dependencies]
 python = ">=3.11,<4.0"
 hier-config = "^3.2.0"
-ansible-base = "^2.10.14"
-
-[tool.poetry.dev-dependencies]
-black = "^21.9b0"
-pylint = "^2.11.1"
-bandit = "^1.7.0"
 
 [tool.poetry.group.dev.dependencies]
-ansible = "7"
 pytest = "^8.3.4"
 black = "^24.10.0"
+ansible = "^11.1.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
